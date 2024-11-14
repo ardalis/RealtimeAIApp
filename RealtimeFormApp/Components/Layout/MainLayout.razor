@@ -1,0 +1,30 @@
+﻿@using Microsoft.AspNetCore.Components.Sections
+@inherits LayoutComponentBase
+
+<div class="bg-blue-800 pb-48 sticky" style="z-index: -1; top: -4rem">
+    <nav class="mx-2 px-8">
+        <div class="flex items-center h-16 font-medium text-sm gap-4 text-gray-100">
+            <a href class="py-2 px-3 rounded-md">Home</a>
+            <a href class="py-2 px-3 bg-blue-900 rounded-md text-white font-semibold">Vehicles</a>
+            <a href class="py-2 px-3 rounded-md">Sales</a>
+            <a href class="py-2 px-3 rounded-md">Reports</a>
+            <a href class="py-2 px-3 rounded-md ml-auto invisible md:visible">Settings</a>
+            <a href class="py-2 px-3 rounded-md invisible md:visible">Log out</a>
+        </div>
+    </nav>
+</div>
+<div class="bg-blue-800 sticky top-0 -mt-48">
+    <header class="text-white mx-2 px-8 text-3xl font-semibold tracking-tight py-5 pb-7 flex items-center">
+        <SectionOutlet SectionName="header-bar" />
+    </header>
+</div>
+
+<main class="bg-white mx-10 min-h-72 rounded-lg p-8 shadow-lg">
+    @Body
+</main>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>

@@ -1,0 +1,23 @@
+﻿button {
+    --status-color: 128, 128, 128;
+    border-radius: 100vh;
+    background-color: rgba(var(--status-color), 0.75);
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+button.Active {
+    --status-color: 0, 180, 0;
+}
+
+    button.Muted {
+        --status-color: 200, 50, 50;
+    }
+
+    button:hover {
+        background-color: rgba(var(--status-color), 1);
+    }
+
+    button:active {
+        background-color: rgba(var(--status-color), 0.75);
+    }

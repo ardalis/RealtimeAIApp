@@ -1,0 +1,260 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components.Sections
+@using OpenAI.RealtimeConversation
+@using System.Collections
+@using System.IO.Pipelines
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json.Serialization
+@using System.Reflection
+@using RealtimeFormApp.Support
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject RealtimeConversationClient RealtimeClient
+
+<PageTitle>Add vehicle</PageTitle>
+
+<SectionContent SectionName="header-bar">
+    <span>Add a new vehicle</span>
+
+    <MicControl Status="micStatus" OnClick="ChangeMicStatusAsync" class="ml-auto mr-4" />
+    <Speaker @ref="@speaker" />
+
+    <button @onclick="@(() => editContext?.Validate())" type="button" class="flex items-center gap-2 text-lg py-2 px-5 bg-gray-900/50 rounded-lg text-white font-semibold hover:bg-blue-600 active:bg-blue-900 active:translate-y-px transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" /></svg>
+        Save
+    </button>
+</SectionContent>
+
+<EditForm EditContext="@editContext" class="grid grid-cols-12 gap-x-10 gap-y-8">
+    <ObjectGraphDataAnnotationsValidator />
+
+    <div class="bg-gray-200 px-6 py-5 rounded-lg grid grid-cols-2 gap-x-8 gap-y-5 md:grid-cols-4 col-span-12">
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Make</label>
+            <InputText @bind-Value="@car.Make" class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Model</label>
+            <InputText @bind-Value="@car.Model" class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Year</label>
+            <InputNumber @bind-Value="@car.Year" class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Mileage</label>
+            <InputNumber @bind-Value="@car.Mileage" class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+    </div>
+
+    <div class="bg-gray-200 px-6 py-6 rounded-lg col-span-12 lg:col-span-7">
+        <label class="text-base block font-medium text-gray-700">Condition / features</label>
+
+        @for (var i = 0; i < (car.ConditionNotes ?? []).Count; i++)
+        {
+            var j = i;
+            <div class="flex gap-4 mt-4 mb-2 items-start">
+                <ContentEditable @bind-Value="@car.ConditionNotes![j]" class="w-full leading-tight px-5 py-4 bg-white rounded-md shadow-md focus:outline focus:outline-2 focus:outline-blue-500" />
+                <button @onclick="@(() => car.ConditionNotes.RemoveAt(j))" type="button" class="w-4 ml-1 text-gray-700 mt-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        }
+
+        <button @onclick="@(() => car.ConditionNotes!.Add(""))" type="button" class="flex gap-1 items-center mt-5 py-2 px-4 text-sm bg-blue-900 rounded-md text-white font-semibold hover:bg-blue-600 active:bg-blue-900 active:translate-y-px transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Add entry
+        </button>
+
+    </div>
+
+    <div class="bg-gray-200 px-6 py-4 rounded-lg col-span-12 lg:col-span-5">
+        <label class="text-base block font-medium text-gray-700">Tyres</label>
+        <div class="grid grid-cols-2 my-4 gap-6">
+            <div>
+                <label class="text-sm block font-medium text-gray-700">Front left</label>
+                <TyreStatusPicker @bind-Value="@car.Tyres.FrontLeft" />
+            </div>
+            <div>
+                <label class="text-sm block font-medium text-gray-700">Front right</label>
+                <TyreStatusPicker @bind-Value="@car.Tyres.FrontRight" />
+            </div>
+            <div>
+                <label class="text-sm block font-medium text-gray-700">Back left</label>
+                <TyreStatusPicker @bind-Value="@car.Tyres.BackLeft" />
+            </div>
+            <div>
+                <label class="text-sm block font-medium text-gray-700">Back right</label>
+                <TyreStatusPicker @bind-Value="@car.Tyres.BackRight" />
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+<details class="mt-4">
+    <summary>Log (@messages.Count)</summary>
+    <ul>
+        @foreach (var message in messages)
+        {
+            <li>@message</li>
+        }
+    </ul>
+</details>
+
+@if (messages.LastOrDefault() is { } lastMessage)
+{
+    <div class="sticky bottom-4 shadow-lg mt-4 border-solid border-2 border-gray-300 bg-amber-50 px-4 pr-5 py-3 w-fit m-auto rounded-2xl flex gap-3 text-gray-700">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+        </svg>
+        @lastMessage
+    </div>
+}
+
+@code {
+    readonly CarDescriptor car = new();
+    EditContext? editContext;
+    Task<IJSObjectReference>? moduleTask;
+    IJSObjectReference? mic;
+    DotNetObjectReference<Home>? selfReference;
+    Pipe micPipe = new();
+    Speaker? speaker;
+    RealtimeConversationManager<CarDescriptor>? realtimeConversationManager;
+    CancellationTokenSource disposalCts = new();
+    List<string> messages = new();
+    SemaphoreSlim writeAudioSemaphore = new(1);
+    MicControl.MicStatus micStatus = MicControl.MicStatus.Disconnected;
+
+    protected override void OnInitialized()
+    {
+        editContext = new EditContext(car);
+        selfReference = DotNetObjectReference.Create(this);
+        moduleTask = JS.InvokeAsync<IJSObjectReference>("import", "./Components/Pages/Home.razor.js").AsTask();
+    }
+
+    [JSInvokable]
+    public async Task OnMicConnectedAsync()
+    {
+        if (realtimeConversationManager is null)
+        {
+            try
+            {
+                realtimeConversationManager = new("Car to be listed for sale",
+                    RealtimeClient, micPipe.Reader.AsStream(), speaker!, UpdateModel, AddMessage);
+                await realtimeConversationManager.RunAsync(disposalCts.Token);
+            }
+            catch (Exception ex)
+            {
+                await DispatchExceptionAsync(ex);
+            }
+        }
+    }
+
+    private void UpdateModel(CarDescriptor newCar)
+    {
+        // This method is called by the conversation manager from outside the Blazor event mechanism,
+        // so we need to InvokeAsync onto the sync context, and manually call StateHasChanged
+        InvokeAsync(() =>
+        {
+            if (UpdateModelProperties(car, newCar))
+            {
+                StateHasChanged();
+            }
+        });
+    }
+
+    private void AddMessage(string message)
+    {
+        if (!string.IsNullOrEmpty(message))
+        {
+            InvokeAsync(() =>
+            {
+                messages.Add(message);
+                StateHasChanged();
+            });
+        }
+    }
+
+    [JSInvokable]
+    public Task ReceiveAudioDataAsync(byte[] data) => InvokeAsync(async () =>
+    {
+        if (writeAudioSemaphore.Wait(0))
+        {
+            try
+            {
+                await micPipe.Writer.WriteAsync(data);
+            }
+            finally
+            {
+                writeAudioSemaphore.Release();
+            }
+        }
+    });
+
+    public async ValueTask DisposeAsync()
+    {
+        disposalCts.Dispose();
+        selfReference?.Dispose();
+        realtimeConversationManager?.Dispose();
+        try
+        {
+            var module = await moduleTask!;
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Not an error
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        realtimeConversationManager?.SetModelData(car);
+    }
+
+    private bool UpdateModelProperties(object oldModel, object newModel)
+    {
+        var foundChange = false;
+        foreach (var prop in oldModel.GetType().GetProperties())
+        {
+            var oldValue = prop.GetValue(oldModel);
+            var newValue = prop.GetValue(newModel);
+            if (prop.PropertyType.GetCustomAttributes<ValidateComplexTypeAttribute>().Any())
+            {
+                foundChange |= UpdateModelProperties(oldValue!, newValue!);
+            }
+            else if (oldValue != newValue)
+            {
+                prop.SetValue(oldModel, newValue);
+                editContext!.NotifyFieldChanged(new FieldIdentifier(oldModel, prop.Name));
+                foundChange = true;
+            }
+        }
+
+        return foundChange;
+    }
+
+    private async Task ChangeMicStatusAsync()
+    {
+        var module = await moduleTask!;
+        switch (micStatus)
+        {
+            case MicControl.MicStatus.Disconnected:
+                micStatus = MicControl.MicStatus.Active;
+                mic = await module.InvokeAsync<IJSObjectReference>("start", selfReference);
+                break;
+            case MicControl.MicStatus.Active:
+                micStatus = MicControl.MicStatus.Muted;
+                await module.InvokeVoidAsync("setMute", mic, true);
+                break;
+            case MicControl.MicStatus.Muted:
+                micStatus = MicControl.MicStatus.Active;
+                await module.InvokeVoidAsync("setMute", mic, false);
+                break;
+        }
+    }
+}

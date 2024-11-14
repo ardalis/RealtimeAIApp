@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+  <Import Project="Support\TailwindIntegration.targets" />
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>3fd53d7e-5bdb-4026-9b35-b62e396ad283</UserSecretsId>
+    <NoWarn>OPENAI002;$(NoWarn)</NoWarn>
+
+    <TailwindCssInput>wwwroot\app.css</TailwindCssInput>
+    <TailwindCssOutput>wwwroot\app.out.css</TailwindCssOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.AI.OpenAI" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.DataAnnotations.Validation" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
+  </ItemGroup>
+
+</Project>
