@@ -42,6 +42,10 @@ Now it will revert to the default modalities, which are text+speech.
 
 If you want more of a two-way conversation, consider updating the prompt in `RealtimeConversationManager.cs` to remove the phrase `Do not reply to them unless they explicitly ask for your input; just listen`. Now it will be more inclined to respond in detail instead of just replying "OK".
 
+### Troubleshooting
+
+If you click the microphone and it says "Connecting..." but *doesn't* then say "Connected", you may be hitting a rate limit. `gpt-4o-realtime-preview` currently allows at most 10 connections/minute, or one connection every 6 seconds. So if you only just reloaded the page, wait a few seconds before reloading and trying again. There isn't a lot of error handling in this prototype.
+
 ## How it works
 
 There's an object model defined in `CarDescriptor.cs`. This is formatted as a JSON schema in the prompt, so the AI knows what kinds of data and edits are allowed.

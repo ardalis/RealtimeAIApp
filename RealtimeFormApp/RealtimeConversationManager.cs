@@ -42,6 +42,7 @@ public class RealtimeConversationManager<TModel>(string modelDescription, Realti
             sessionOptions.Tools.Add(tool.ToConversationFunctionTool());
         }
 
+        addMessage("Connecting...");
         session = await realtimeConversationClient.StartConversationSessionAsync();
         await session.ConfigureSessionAsync(sessionOptions);
         var outputStringBuilder = new StringBuilder();
@@ -51,7 +52,7 @@ public class RealtimeConversationManager<TModel>(string modelDescription, Realti
             switch (update)
             {
                 case ConversationSessionStartedUpdate:
-                    addMessage($"Connected");
+                    addMessage("Connected");
                     _ = Task.Run(async () => await session.SendInputAudioAsync(micStream, cancellationToken));
                     break;
 
