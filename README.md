@@ -2,17 +2,32 @@
 
 ### Prerequisite
 
+You need either an OpenAI or Azure OpenAI account that has access to a `gpt-4o-realtime-preview` model. Also make sure you're on .NET 9 (`dotnet --version` should confirm this).
+
+#### To use OpenAI:
+
+In `Program.cs`, uncomment the following lines, and comment out the equivalent Azure OpenAI ones:
+
+```cs
+var openAiClient = new OpenAIClient(
+    builder.Configuration["OpenAI:Key"]!);
+```
+
+Then use the command line/terminal to add your OpenAI API key to the .NET user secrets feature:
+
+```
+dotnet user-secrets set "OpenAI:Key" abcdef...
+```
+
+#### To use Azure OpenAI:
+
 First use Azure OpenAI Studio to deploy a `gpt-4o-realtime-preview` model to Azure OpenAI. **Make sure the deployment name is actually `gpt-4o-realtime-preview`**, or if not, go and edit the following line in `Program.cs` to put in your deployment name:
 
 ```cs
 var realtimeClient = openAiClient.GetRealtimeConversationClient("gpt-4o-realtime-preview");
 ```
 
-Also make sure you're on .NET 9 (`dotnet --version` should confirm this).
-
-### How to run
-
-Set the Azure OpenAI resource endpoint and API key:
+Then use the command line/terminal to set the Azure OpenAI resource endpoint and API key:
 
 ```
 cd RealtimeFormApp
@@ -20,7 +35,9 @@ dotnet user-secrets set "AzureOpenAI:Endpoint" https://YOUR-RESOURCE.openai.azur
 dotnet user-secrets set "AzureOpenAI:Key" abcdef...
 ```
 
-Now you can run it:
+### How to run
+
+Run from Visual Studio or VS Code with Ctrl+F5 or from the console:
 
 ```
 dotnet run
