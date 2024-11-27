@@ -1,5 +1,8 @@
 ## Experiment with a realtime conversational editor
 
+Demo video:
+[![Demo video](https://github.com/user-attachments/assets/66459cef-8e86-497b-ad8f-78fca30f5443)](https://youtu.be/H4BEF-VSDXQ)
+
 ### Prerequisite
 
 You need either an OpenAI or Azure OpenAI account that has access to a `gpt-4o-realtime-preview` model. Also make sure you're on .NET 9 (`dotnet --version` should confirm this).
