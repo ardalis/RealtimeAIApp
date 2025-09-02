@@ -43,8 +43,24 @@ public class RealtimeConversationManager<TModel>(string modelDescription, Realti
         }
 
         addMessage("Connecting...");
-        session = await realtimeConversationClient.StartConversationSessionAsync();
-        await session.ConfigureSessionAsync(sessionOptions);
+        try
+        {
+            addMessage("Starting conversation session...");
+            session = await realtimeConversationClient.StartConversationSessionAsync();
+            addMessage("Session started, configuring...");
+            await session.ConfigureSessionAsync(sessionOptions);
+            addMessage("Configuration complete!");
+        }
+        catch (Exception ex)
+        {
+            addMessage($"Connection failed: {ex.Message}");
+            addMessage($"Exception type: {ex.GetType().Name}");
+            if (ex.InnerException != null)
+            {
+                addMessage($"Inner exception: {ex.InnerException.Message}");
+            }
+            throw;
+        }
         var outputStringBuilder = new StringBuilder();
 
         await foreach (ConversationUpdate update in session.ReceiveUpdatesAsync(cancellationToken))

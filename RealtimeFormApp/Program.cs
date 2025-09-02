@@ -11,19 +11,31 @@ builder.Services.AddRazorComponents()
 
 // -----------------------------------------------------------------------------------
 // YOU MUST ENABLE ONE OF THE FOLLOWING (FOR EITHER OPENAI OR AZURE OPENAI)
-/*
-// If using OpenAI:
-var openAiClient = new OpenAIClient(
-    builder.Configuration["OpenAI:Key"]!);
-*/
 
+// If using OpenAI:
+Console.WriteLine("Using OpenAI directly");
+var openAiKey = builder.Configuration["OpenAI:Key"]!;
+Console.WriteLine($"OpenAI API Key configured: {!string.IsNullOrEmpty(openAiKey)}");
+var openAiClient = new OpenAIClient(openAiKey);
+
+/*
 // If using Azure OpenAI:
+var endpoint = builder.Configuration["AzureOpenAI:Endpoint"]!;
+var key = builder.Configuration["AzureOpenAI:Key"]!;
+Console.WriteLine($"Using Azure OpenAI Endpoint: {endpoint}");
+Console.WriteLine($"API Key configured: {!string.IsNullOrEmpty(key)}");
+
 var openAiClient = new AzureOpenAIClient(
-    new Uri(builder.Configuration["AzureOpenAI:Endpoint"]!),
-    new ApiKeyCredential(builder.Configuration["AzureOpenAI:Key"]!));
+    new Uri(endpoint),
+    new ApiKeyCredential(key));
+*/
 // -----------------------------------------------------------------------------------
 
-var realtimeClient = openAiClient.GetRealtimeConversationClient("gpt-4o-realtime-preview");
+var deploymentName = "gpt-4o-realtime-preview";
+Console.WriteLine($"Looking for model: {deploymentName}");
+
+var realtimeClient = openAiClient.GetRealtimeConversationClient(deploymentName);
+Console.WriteLine($"RealtimeConversationClient created successfully");
 builder.Services.AddSingleton(realtimeClient);
 
 var app = builder.Build();
@@ -36,7 +48,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseAntiforgery();
