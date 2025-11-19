@@ -14,6 +14,11 @@ builder.Services.AddRazorComponents()
 
 // If using OpenAI:
 Console.WriteLine("Using OpenAI directly");
+
+// Set in User Secrets
+// dotnet user-secrets init
+// dotnet user-secrets set "OpenAI:Key" "<your OpenAI key>"
+// dotnet user-secrets list
 var openAiKey = builder.Configuration["OpenAI:Key"]!;
 Console.WriteLine($"OpenAI API Key configured: {!string.IsNullOrEmpty(openAiKey)}");
 var openAiClient = new OpenAIClient(openAiKey);

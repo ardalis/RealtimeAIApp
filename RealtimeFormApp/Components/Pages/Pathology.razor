@@ -1,0 +1,330 @@
+@page "/pathology"
+@using OpenAI.RealtimeConversation
+@using System.IO.Pipelines
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json.Serialization
+@using System.Reflection
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject RealtimeConversationClient RealtimeClient
+
+<PageTitle>Pathology Assessment</PageTitle>
+
+<SectionContent SectionName="header-bar">
+    <span>Tissue Sample Assessment</span>
+
+    <MicControl Status="micStatus" OnClick="ChangeMicStatusAsync" class="ml-auto mr-4" />
+    <Speaker @ref="@speaker" />
+
+    <button @onclick="@(() => editContext?.Validate())" type="button" class="flex items-center gap-2 text-lg py-2 px-5 bg-gray-900/50 rounded-lg text-white font-semibold hover:bg-blue-600 active:bg-blue-900 active:translate-y-px transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" /></svg>
+        Save Assessment
+    </button>
+</SectionContent>
+
+<EditForm EditContext="@editContext" class="grid grid-cols-12 gap-x-10 gap-y-8">
+    <ObjectGraphDataAnnotationsValidator />
+
+    <div class="bg-gray-200 px-6 py-5 rounded-lg grid grid-cols-2 gap-x-8 gap-y-5 md:grid-cols-4 col-span-12">
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Case ID</label>
+            <InputText @bind-Value="@tissueSample.CaseId" class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Sample Type</label>
+            <InputText @bind-Value="@tissueSample.SampleType" class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Patient Age</label>
+            <InputNumber @bind-Value="@tissueSample.PatientAge" class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Collection Date</label>
+            <InputDate @bind-Value="@tissueSample.CollectionDate" class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+    </div>
+
+    <div class="bg-gray-200 px-6 py-6 rounded-lg col-span-12 lg:col-span-7">
+        <div class="grid gap-y-5">
+            <div>
+                <label class="text-sm block font-medium text-gray-700">Pathological Assessment</label>
+                <InputSelect @bind-Value="@tissueSample.Assessment" class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500">
+                    <option value="@PathologicalAssessment.Pending">Pending</option>
+                    <option value="@PathologicalAssessment.Benign">Benign</option>
+                    <option value="@PathologicalAssessment.PreCancerous">Pre-cancerous</option>
+                    <option value="@PathologicalAssessment.Cancerous">Cancerous</option>
+                </InputSelect>
+            </div>
+            
+            <div>
+                <label class="text-sm block font-medium text-gray-700">Measurements</label>
+                <div class="mt-2 space-y-2">
+                    @if (tissueSample.Measurements.Any())
+                    {
+                        @foreach (var (measurement, index) in tissueSample.Measurements.Select((m, i) => (m, i)))
+                        {
+                            <div class="flex gap-2">
+                                <input type="text" @bind="tissueSample.Measurements[index]" 
+                                       class="flex-1 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+                                <button type="button" @onclick="() => RemoveMeasurement(index)"
+                                        class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">×</button>
+                            </div>
+                        }
+                    }
+                    <button type="button" @onclick="AddMeasurement" 
+                            class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Add Measurement</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-sm block font-medium text-gray-700">Staining Methods</label>
+                <div class="mt-2 space-y-2">
+                    @if (tissueSample.StainingMethods.Any())
+                    {
+                        @foreach (var (stain, index) in tissueSample.StainingMethods.Select((s, i) => (s, i)))
+                        {
+                            <div class="flex gap-2">
+                                <input type="text" @bind="tissueSample.StainingMethods[index]" 
+                                       class="flex-1 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+                                <button type="button" @onclick="() => RemoveStain(index)"
+                                        class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">×</button>
+                            </div>
+                        }
+                    }
+                    <button type="button" @onclick="AddStain" 
+                            class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Add Staining Method</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-gray-200 px-6 py-6 rounded-lg col-span-12 lg:col-span-5 space-y-4">
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Microscopic Findings</label>
+            <InputTextArea @bind-Value="@tissueSample.MicroscopicFindings" rows="4" 
+                          class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+        
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Diagnosis</label>
+            <InputTextArea @bind-Value="@tissueSample.Diagnosis" rows="3" 
+                          class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+        
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Recommendations</label>
+            <InputTextArea @bind-Value="@tissueSample.Recommendations" rows="3" 
+                          class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+        
+        <div>
+            <label class="text-sm block font-medium text-gray-700">Additional Notes</label>
+            <InputTextArea @bind-Value="@tissueSample.Notes" rows="3" 
+                          class="w-full mt-2 px-3 py-1 rounded-md shadow-md outline-2 focus:outline focus:outline-blue-500" />
+        </div>
+    </div>
+</EditForm>
+
+<details class="mt-8">
+    <summary class="cursor-pointer text-blue-600 hover:text-blue-800">AI Assistant Messages</summary>
+    <ul>
+        @foreach (var message in messages)
+        {
+            <li>@message</li>
+        }
+    </ul>
+</details>
+
+@if (messages.LastOrDefault() is { } lastMessage)
+{
+    <div class="sticky bottom-4 shadow-lg mt-4 border-solid border-2 border-gray-300 bg-amber-50 px-4 pr-5 py-3 w-fit m-auto rounded-2xl flex gap-3 text-gray-700">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+        </svg>
+        @lastMessage
+    </div>
+}
+
+@code {
+    readonly TissueSampleDescriptor tissueSample = new();
+    EditContext? editContext;
+    Task<IJSObjectReference>? moduleTask;
+    IJSObjectReference? mic;
+    DotNetObjectReference<Pathology>? selfReference;
+    Pipe micPipe = new();
+    Speaker? speaker;
+    RealtimeConversationManager<TissueSampleDescriptor>? realtimeConversationManager;
+    CancellationTokenSource disposalCts = new();
+    List<string> messages = new();
+    SemaphoreSlim writeAudioSemaphore = new(1);
+    MicControl.MicStatus micStatus = MicControl.MicStatus.Disconnected;
+
+    protected override void OnInitialized()
+    {
+        editContext = new EditContext(tissueSample);
+        selfReference = DotNetObjectReference.Create(this);
+        moduleTask = JS.InvokeAsync<IJSObjectReference>("import", "./Components/Pages/Pathology.razor.js").AsTask();
+    }
+
+    [JSInvokable]
+    public async Task OnMicConnectedAsync()
+    {
+        if (realtimeConversationManager is null)
+        {
+            try
+            {
+                AddMessage("Creating conversation manager...");
+                realtimeConversationManager = new("Tissue sample for pathological assessment",
+                    RealtimeClient, micPipe.Reader.AsStream(), speaker!, UpdateModel, AddMessage);
+                AddMessage("Starting realtime conversation...");
+                await realtimeConversationManager.RunAsync(disposalCts.Token);
+            }
+            catch (Exception ex)
+            {
+                AddMessage($"Error in OnMicConnectedAsync: {ex.Message}");
+                AddMessage($"Exception type: {ex.GetType().Name}");
+                if (ex.InnerException != null)
+                {
+                    AddMessage($"Inner exception: {ex.InnerException.Message}");
+                }
+                await DispatchExceptionAsync(ex);
+            }
+        }
+        else
+        {
+            AddMessage("Conversation manager already exists");
+        }
+    }
+
+    private void UpdateModel(TissueSampleDescriptor newSample)
+    {
+        InvokeAsync(() =>
+        {
+            if (UpdateModelProperties(tissueSample, newSample))
+            {
+                StateHasChanged();
+            }
+        });
+    }
+
+    private void AddMessage(string message)
+    {
+        if (!string.IsNullOrEmpty(message))
+        {
+            InvokeAsync(() =>
+            {
+                messages.Add(message);
+                StateHasChanged();
+            });
+        }
+    }
+
+    private void AddMeasurement()
+    {
+        tissueSample.Measurements.Add("");
+        StateHasChanged();
+    }
+
+    private void RemoveMeasurement(int index)
+    {
+        tissueSample.Measurements.RemoveAt(index);
+        StateHasChanged();
+    }
+
+    private void AddStain()
+    {
+        tissueSample.StainingMethods.Add("");
+        StateHasChanged();
+    }
+
+    private void RemoveStain(int index)
+    {
+        tissueSample.StainingMethods.RemoveAt(index);
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public Task ReceiveAudioDataAsync(byte[] data) => InvokeAsync(async () =>
+    {
+        if (writeAudioSemaphore.Wait(0))
+        {
+            try
+            {
+                await micPipe.Writer.WriteAsync(data);
+            }
+            finally
+            {
+                writeAudioSemaphore.Release();
+            }
+        }
+    });
+
+    public async ValueTask DisposeAsync()
+    {
+        disposalCts.Dispose();
+        selfReference?.Dispose();
+        realtimeConversationManager?.Dispose();
+        try
+        {
+            var module = await moduleTask!;
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Not an error
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        realtimeConversationManager?.SetModelData(tissueSample);
+    }
+
+    private bool UpdateModelProperties(object oldModel, object newModel)
+    {
+        var foundChange = false;
+        foreach (var prop in oldModel.GetType().GetProperties())
+        {
+            var oldValue = prop.GetValue(oldModel);
+            var newValue = prop.GetValue(newModel);
+            if (prop.PropertyType.GetCustomAttributes<ValidateComplexTypeAttribute>().Any())
+            {
+                foundChange |= UpdateModelProperties(oldValue!, newValue!);
+            }
+            else if (oldValue != newValue)
+            {
+                prop.SetValue(oldModel, newValue);
+                editContext!.NotifyFieldChanged(new FieldIdentifier(oldModel, prop.Name));
+                foundChange = true;
+            }
+        }
+
+        return foundChange;
+    }
+
+    private async Task ChangeMicStatusAsync()
+    {
+        var module = await moduleTask!;
+        switch (micStatus)
+        {
+            case MicControl.MicStatus.Disconnected:
+                micStatus = MicControl.MicStatus.Active;
+                mic = await module.InvokeAsync<IJSObjectReference>("start", selfReference);
+                break;
+            case MicControl.MicStatus.Active:
+                micStatus = MicControl.MicStatus.Muted;
+                await module.InvokeVoidAsync("setMute", mic, true);
+                break;
+            case MicControl.MicStatus.Muted:
+                micStatus = MicControl.MicStatus.Active;
+                await module.InvokeVoidAsync("setMute", mic, false);
+                break;
+        }
+    }
+
+    private new Task DispatchExceptionAsync(Exception ex) => InvokeAsync(() =>
+    {
+        messages.Add($"Error: {ex.Message}");
+        StateHasChanged();
+    });
+}
